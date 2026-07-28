@@ -1,0 +1,182 @@
+/* ============================================================
+   ICM Assistant -- design tokens
+   Override any --icm-* value (via the `theme` prop or a parent
+   rule) to restyle without touching component code.
+   ============================================================ */
+.icm-root {
+  /* Each token consumes the host app's CSS variable when present -- so the
+     component tracks the app's theme, including light/dark -- and falls back to
+     the ICM palette when standalone (e.g. the GitHub Pages web build) or when
+     the host doesn't define that variable. Pass the `theme` prop to force a
+     value. Wired to the app's shadcn-style token names. */
+  --icm-accent:      var(--primary, #1B4FA0);
+  --icm-on-accent:   var(--primary-foreground, #FFFFFF); /* text on accent bg */
+  --icm-accent-dark: var(--primary, #0E2F63);
+  --icm-wash:        var(--muted, #EEF3FB);
+  --icm-ink:         var(--foreground, #16202B);
+  --icm-muted:       var(--muted-foreground, #6B7785);
+  --icm-surface:     var(--card, #FFFFFF);
+  --icm-page:        var(--background, #FAFBFC);
+  --icm-line:        var(--border, #E1E8F0);
+  --icm-danger:      var(--destructive, #B3261E);
+  --icm-radius:      var(--radius, 10px);
+  --icm-font:        var(--font-geist-sans, "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  --icm-font-serif:  var(--font-serif, "Source Serif 4", Georgia, serif);
+
+  font-family: var(--icm-font);
+  color: var(--icm-ink);
+  background: var(--icm-page);
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+  box-sizing: border-box;
+}
+.icm-root *, .icm-root *::before, .icm-root *::after { box-sizing: inherit; }
+
+/* ---------- header ---------- */
+.icm-header { margin-bottom: 16px; }
+.icm-title { font-size: 22px; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.01em; }
+.icm-tagline { margin: 0; font-size: 14px; color: var(--icm-muted); }
+
+/* ---------- search ---------- */
+.icm-searchbar {
+  background: var(--icm-surface);
+  border: 1px solid var(--icm-line);
+  border-radius: var(--icm-radius);
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.icm-input {
+  width: 100%; border: 0; outline: 0; resize: vertical;
+  font: inherit; font-size: 16px; /* 16px avoids iOS zoom-on-focus */
+  color: var(--icm-ink); background: transparent; min-height: 48px;
+}
+.icm-input::placeholder { color: var(--icm-muted); }
+.icm-search-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+.icm-primary-btn {
+  background: var(--icm-accent); color: var(--icm-on-accent); border: 0;
+  border-radius: 8px; padding: 10px 20px; font: inherit; font-weight: 600;
+  cursor: pointer; min-height: 44px; /* touch target */
+}
+.icm-primary-btn:disabled { opacity: 0.45; cursor: default; }
+.icm-ghost-btn {
+  background: transparent; color: var(--icm-muted); border: 1px solid var(--icm-line);
+  border-radius: 8px; padding: 9px 14px; font: inherit; cursor: pointer; min-height: 44px;
+}
+
+/* ---------- cards ---------- */
+.icm-card {
+  background: var(--icm-surface);
+  border: 1px solid var(--icm-line);
+  border-radius: var(--icm-radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.icm-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--icm-accent); margin-bottom: 8px;
+}
+
+/* ---------- answer ---------- */
+.icm-answer-text {
+  font-family: var(--icm-font-serif);
+  font-size: 17px; line-height: 1.6; white-space: pre-wrap;
+}
+.icm-cite {
+  display: inline-block; vertical-align: super;
+  font-family: var(--icm-font); font-size: 11px; font-weight: 700; line-height: 1;
+  color: var(--icm-accent); background: var(--icm-wash);
+  border: 0; border-radius: 4px; padding: 2px 5px; margin: 0 1px;
+  cursor: pointer;
+}
+.icm-cite:hover { background: var(--icm-accent); color: var(--icm-on-accent); }
+.icm-mt-note {
+  margin: 12px 0 0; font-size: 12px; color: var(--icm-muted);
+  border-left: 3px solid var(--icm-line); padding-left: 10px;
+}
+.icm-answer-foot {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--icm-line);
+}
+.icm-hint { margin: 0; font-size: 12px; color: var(--icm-muted); flex: 1; min-width: 200px; }
+.icm-err { color: var(--icm-danger); margin: 0; font-size: 14px; }
+
+/* thinking pulse */
+.icm-thinking { display: flex; align-items: center; gap: 10px; color: var(--icm-muted); font-size: 14px; }
+.icm-dots { display: inline-flex; gap: 4px; }
+.icm-dots i {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--icm-accent);
+  animation: icm-pulse 1.2s infinite ease-in-out;
+}
+.icm-dots i:nth-child(2) { animation-delay: 0.15s; }
+.icm-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes icm-pulse { 0%,80%,100% { opacity: 0.25; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .icm-dots i { animation: none; opacity: 0.6; } }
+
+/* ---------- sources ---------- */
+.icm-sources-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--icm-muted); margin: 0 0 12px; }
+.icm-tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px; -webkit-overflow-scrolling: touch; }
+.icm-tab {
+  flex: 0 0 auto; background: transparent; border: 1px solid var(--icm-line);
+  border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px;
+  color: var(--icm-muted); cursor: pointer; white-space: nowrap;
+}
+.icm-tab.is-active { background: var(--icm-accent); border-color: var(--icm-accent); color: var(--icm-on-accent); font-weight: 600; }
+.icm-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.icm-chip {
+  background: var(--icm-wash); border: 0; border-radius: 6px;
+  padding: 5px 10px; font: inherit; font-size: 12px; color: var(--icm-accent-dark); cursor: pointer;
+}
+.icm-chip.is-active { background: var(--icm-accent); color: var(--icm-on-accent); font-weight: 600; }
+
+.icm-ledger { display: flex; flex-direction: column; gap: 6px; }
+.icm-row {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%;
+  text-align: start; background: transparent; border: 1px solid transparent;
+  border-radius: 8px; padding: 10px; font: inherit; cursor: pointer;
+}
+.icm-row:hover { background: var(--icm-wash); }
+.icm-row.is-active { background: var(--icm-wash); border-color: var(--icm-accent); }
+.icm-cite-no {
+  flex: 0 0 22px; height: 22px; border-radius: 5px; background: var(--icm-accent);
+  color: var(--icm-on-accent); font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+/* row-main must be block so text-overflow applies (inline spans ignore it) */
+.icm-row-main { display: block; flex: 1; min-width: 0; }
+.icm-row-name {
+  display: block; font-size: 14px; line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* second line: long delegate-vote strings can never collide with the title */
+.icm-row-meta { display: block; margin-top: 3px; font-size: 11px; color: var(--icm-muted); }
+.icm-loe, .icm-vote { display: inline; }
+.icm-sep { margin: 0 6px; }
+.icm-empty { color: var(--icm-muted); font-size: 14px; margin: 0; }
+
+/* ---------- viewer ---------- */
+.icm-viewer { padding: 0; overflow: hidden; }
+.icm-viewer-head {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid var(--icm-line); background: var(--icm-wash);
+}
+.icm-viewer-name { font-size: 13px; font-weight: 600; }
+.icm-viewer-meeting { font-size: 12px; color: var(--icm-muted); }
+.icm-pdf { background: #f4f6f9; max-height: 70vh; overflow: auto; -webkit-overflow-scrolling: touch; }
+.icm-pdf canvas { display: block; margin: 0 auto 8px; max-width: 100%; height: auto; }
+.icm-pdf-loading { height: 240px; }
+.icm-pdf-fallback { padding: 20px; font-size: 14px; color: var(--icm-muted); }
+
+/* ---------- RTL ---------- */
+.icm-root[dir="rtl"] .icm-mt-note { border-left: 0; border-right: 3px solid var(--icm-line); padding-left: 0; padding-right: 10px; }
+
+/* ---------- first-run examples ---------- */
+.icm-examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.icm-examples-label { font-size: 12px; color: var(--icm-muted); margin-inline-end: 2px; }
+.icm-example {
+  background: var(--icm-surface); border: 1px solid var(--icm-line);
+  border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 13px;
+  color: var(--icm-accent-dark); cursor: pointer; text-align: start; min-height: 40px;
+}
+.icm-example:hover { background: var(--icm-wash); border-color: var(--icm-accent); }
