@@ -7,10 +7,19 @@
  * dashes to ASCII inside keys only -- never touch dashes in prose.
  */
 
-// 4-digit year, then one or more dash-separated alphanumeric segments.
-export const CITE_RE = /\[\s*([0-9]{4}(?:[-\u2010-\u2015\u2212][A-Za-z0-9]+)+)\s*\]/g;
+// ICM record keys: 4-digit year, then dash-separated alphanumeric segments.
+// Literature keys (recent-literature summary): PMID:<digits>.
+export const CITE_RE = /\[\s*([0-9]{4}(?:[-\u2010-\u2015\u2212][A-Za-z0-9]+)+|PMID\s*:\s*\d{4,9})\s*\]/gi;
 
-export const normalizeKey = (key) => String(key || '').replace(/[\u2010-\u2015\u2212]/g, '-');
+export const normalizeKey = (key) => {
+  const k = String(key || '');
+  return /^\s*pmid/i.test(k)
+    ? 'PMID:' + k.replace(/\D/g, '')
+    : k.replace(/[\u2010-\u2015\u2212]/g, '-');
+};
+
+/** Literature (PubMed) entries live in their own ledger tab and aren't ICM records. */
+export const isLiteratureKey = (key) => /^PMID:/i.test(String(key || ''));
 
 /**
  * Split answer text into renderable segments so React can render citations as
@@ -26,7 +35,7 @@ export function segmentAnswer(text, keyToCite) {
 
   const out = [];
   let last = 0;
-  const re = new RegExp(CITE_RE.source, 'g');
+  const re = new RegExp(CITE_RE.source, CITE_RE.flags);
   let m;
   while ((m = re.exec(src)) !== null) {
     const key = normalizeKey(m[1]);
@@ -56,4 +65,28 @@ export function assignCiteNumbers(documents) {
     if (d.key) keyToCite.set(normalizeKey(d.key), cite);
   }
   return { docs, keyToCite };
+}
+
+/**
+ * Conversation-wide citation numbers: walk the answers in order and number each
+ * known key on its first citation. Earlier answers never change, so numbers are
+ * stable as the conversation grows; a record cited in answers 1 and 3 keeps one
+ * number. Keys not in `known` (no source record) stay unnumbered.
+ *
+ * @param {string[]} texts  answers, oldest first (the in-flight one last)
+ * @param {Set<string>|Map<string,*>} known  keys that have a source record
+ * @returns {Map<string, number>}
+ */
+export function numberCitations(texts, known) {
+  const map = new Map();
+  const re = new RegExp(CITE_RE.source, CITE_RE.flags);
+  for (const text of texts) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(String(text || ''))) !== null) {
+      const key = normalizeKey(m[1]);
+      if (known.has(key) && !map.has(key)) map.set(key, map.size + 1);
+    }
+  }
+  return map;
 }

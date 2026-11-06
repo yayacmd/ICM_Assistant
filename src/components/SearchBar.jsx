@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 
-export default function SearchBar({ value, onChange, onSubmit, disabled, strings }) {
+export default function SearchBar({ value, onChange, onSubmit, disabled, strings, autoFocusKey, placeholder }) {
   const ref = useRef(null);
-  useEffect(() => { ref.current?.focus(); }, []);
+  // Focus on mount, and again when the caller changes autoFocusKey (e.g. a follow-up starts).
+  useEffect(() => { ref.current?.focus(); }, [autoFocusKey]);
 
   return (
     <div className="icm-searchbar">
@@ -11,7 +12,7 @@ export default function SearchBar({ value, onChange, onSubmit, disabled, strings
         className="icm-input"
         rows={2}
         value={value}
-        placeholder={strings.ph}
+        placeholder={placeholder || strings.ph}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit(); }

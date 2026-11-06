@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { groupBy, safeName } from '../lib/format.js';
 
 /**
@@ -10,6 +10,13 @@ export default function SourcesLedger({ docs, strings, activeKey, onSelect }) {
   const byMeeting = useMemo(() => groupBy(docs, 'meeting'), [docs]);
   const meetings = useMemo(() => Object.keys(byMeeting), [byMeeting]);
   const [meeting, setMeeting] = useState(meetings[0] || null);
+  const tabsRef = useRef(null);
+  // The tab row scrolls horizontally; keep the active tab visible when a
+  // citation switches tabs.
+  useEffect(() => {
+    tabsRef.current?.querySelector('.is-active')
+      ?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [meeting]);
 
   const sections = useMemo(
     () => groupBy(byMeeting[meeting] || [], 'meeting_section'),
@@ -20,7 +27,23 @@ export default function SourcesLedger({ docs, strings, activeKey, onSelect }) {
 
   // Reset drill-down whenever a new result set arrives.
   useEffect(() => { setMeeting(meetings[0] || null); }, [meetings.join('|')]);
-  useEffect(() => { setSection(sectionKeys[0] || null); }, [sectionKeys.join('|')]);
+  useEffect(() => {
+    // Prefer the active record's section when it lives in this meeting.
+    const doc = activeKey && docs.find((d) => d.key === activeKey);
+    const s = doc && (doc.meeting_section ?? 'Uncategorized').toString();
+    setSection(s && sectionKeys.includes(s) ? s : (sectionKeys[0] || null));
+  }, [sectionKeys.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Follow the active record: a citation can point into another tab or section
+  // (e.g. the Recent literature tab), so reveal where it lives.
+  useEffect(() => {
+    const doc = activeKey && docs.find((d) => d.key === activeKey);
+    if (!doc) return;
+    const m = (doc.meeting ?? 'Uncategorized').toString();
+    const s = (doc.meeting_section ?? 'Uncategorized').toString();
+    if (m !== meeting) setMeeting(m);
+    setSection(s);
+  }, [activeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!docs.length) {
     return (
@@ -38,7 +61,7 @@ export default function SourcesLedger({ docs, strings, activeKey, onSelect }) {
       <h2 className="icm-sources-title">{strings.sources}</h2>
 
       {meetings.length > 1 ? (
-        <div className="icm-tabs" role="tablist">
+        <div className="icm-tabs" role="tablist" ref={tabsRef}>
           {meetings.map((m) => (
             <button
               key={m}
@@ -78,7 +101,9 @@ export default function SourcesLedger({ docs, strings, activeKey, onSelect }) {
               className={`icm-row${isActive ? ' is-active' : ''}`}
               onClick={() => onSelect(doc)}
             >
-              <span className="icm-cite-no">{doc._cite}</span>
+              <span className={`icm-cite-no${doc._cite == null ? ' is-none' : ''}`}>
+                {doc._cite == null ? '\u00b7' : doc._cite}
+              </span>
               <span className="icm-row-main">
                 <span className="icm-row-name">{safeName(doc)}</span>
                 {loe || vote ? (

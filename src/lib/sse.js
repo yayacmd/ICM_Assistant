@@ -49,6 +49,10 @@ export function interpretEvent(eventType, data) {
   if (eventType === 'documents') {
     try { return { kind: 'documents', value: JSON.parse(data) }; } catch { return null; }
   }
+  if (eventType === 'turn') {
+    // Conversation memory: {q: standalone question, cited: [record keys]}.
+    try { return { kind: 'turn', value: JSON.parse(data) }; } catch { return null; }
+  }
   if (eventType === 'error') {
     try { return { kind: 'error', value: JSON.parse(data).error || 'Unknown error' }; }
     catch { return { kind: 'error', value: 'Unknown error' }; }
