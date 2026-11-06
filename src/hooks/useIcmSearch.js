@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { consumeSSE, interpretEvent } from '../lib/sse.js';
-import { assignCiteNumbers } from '../lib/citations.js';
+import { assignCiteNumbers, isLiteratureKey } from '../lib/citations.js';
 
 /**
  * Owns the whole search lifecycle: abortable request, SSE consumption,
@@ -9,8 +9,14 @@ import { assignCiteNumbers } from '../lib/citations.js';
  * Sources arrive BEFORE generation (a perceived-latency win), so `docs`
  * populates while `answer` is still empty -- render the ledger as soon as it
  * exists rather than waiting for the answer.
+ *
+ * search(query, { previous }) -- `previous` (optional) is the prior question(s)
+ * in a follow-up thread; the backend folds it into a standalone question.
+ * sendFeedback('up'|'down') posts the ICM record keys shown + the rating
+ * (never the question text) to /feedback.
+ * `strings` (optional) localizes the rate-limit message.
  */
-export function useIcmSearch({ apiBase, lang }) {
+export function useIcmSearch({ apiBase, lang, strings }) {
   const [status, setStatus] = useState('idle'); // idle | thinking | streaming | done | error
   const [answer, setAnswer] = useState('');
   const [docs, setDocs] = useState([]);
@@ -26,9 +32,9 @@ export function useIcmSearch({ apiBase, lang }) {
     setStatus('idle');
   }, []);
 
-  const search = useCallback(async (queryText) => {
+  const search = useCallback(async (queryText, { previous } = {}) => {
     const q = String(queryText || '').trim();
-    if (!q) return;
+    if (!q) return false;
 
     if (abortRef.current) abortRef.current.abort();
     const ac = new AbortController();
@@ -51,11 +57,18 @@ export function useIcmSearch({ apiBase, lang }) {
           Accept: 'text/event-stream',
           'X-User-Lang': lang,
         },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify(previous ? { query: q, previous: String(previous).slice(-500) } : { query: q }),
         signal: ac.signal,
         cache: 'no-store',
         redirect: 'follow',
       });
+      if (resp.status === 429) {
+        const wait = parseInt(resp.headers.get('Retry-After') || '30', 10) || 30;
+        const tpl = strings?.busy || 'Too many requests. Please try again in {s} s.';
+        setError(tpl.replace('{s}', String(wait)));
+        setStatus('error');
+        return false;
+      }
       if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
 
       await consumeSSE(resp.body, (eventType, data) => {
@@ -75,12 +88,25 @@ export function useIcmSearch({ apiBase, lang }) {
       });
 
       setStatus(ac.signal.aborted ? 'idle' : 'done');
+      return true;
     } catch (e) {
-      if (e.name === 'AbortError') return; // superseded by a newer query
+      if (e.name === 'AbortError') return false; // superseded by a newer query
       setError(e.message || 'Request failed');
       setStatus('error');
+      return false;
     }
-  }, [apiBase, lang]);
+  }, [apiBase, lang, strings]);
 
-  return { status, answer, docs, keyToCite, error, search, reset };
+  const sendFeedback = useCallback(async (rating) => {
+    const keys = docs.map((d) => d.key).filter((k) => k && !isLiteratureKey(k));
+    try {
+      await fetch(`${apiBase}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keys, rating }),
+      });
+    } catch { /* feedback is best-effort */ }
+  }, [apiBase, docs]);
+
+  return { status, answer, docs, keyToCite, error, search, reset, sendFeedback };
 }

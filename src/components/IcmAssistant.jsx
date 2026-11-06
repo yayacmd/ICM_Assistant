@@ -40,7 +40,33 @@ export default function IcmAssistant({
   const [copied, setCopied] = useState(false);
   const answerRef = useRef(null);
 
-  const { status, answer, docs, keyToCite, error, search } = useIcmSearch({ apiBase, lang });
+  const { status, answer, docs, keyToCite, error, search, sendFeedback } =
+    useIcmSearch({ apiBase, lang, strings });
+
+  // Follow-up thread: questions asked so far. In follow-up mode the next query
+  // sends them as `previous` so "what about revision cases?" resolves against
+  // the earlier question. Normal questions send nothing extra (no extra LLM call).
+  const [thread, setThread] = useState([]);
+  const [followMode, setFollowMode] = useState(false);
+
+  const ask = useCallback(async (text, { fresh = false } = {}) => {
+    const q = String(text || '').trim();
+    if (!q) return;
+    const inThread = followMode && !fresh && thread.length > 0;
+    setFollowMode(false);
+    const ok = await search(q, inThread ? { previous: thread.join(' \u2192 ') } : {});
+    if (ok) setThread((t) => (inThread ? t : []).concat(q).slice(-4));
+  }, [followMode, thread, search]);
+
+  const startFollowUp = useCallback(() => {
+    setFollowMode(true);
+    setQuery('');
+  }, []);
+
+  const endThread = useCallback(() => {
+    setFollowMode(false);
+    setThread([]);
+  }, []);
 
   // Auto-open the first source once results land, so the viewer is never blank.
   useEffect(() => {
@@ -80,10 +106,27 @@ export default function IcmAssistant({
       <SearchBar
         value={query}
         onChange={setQuery}
-        onSubmit={() => search(query)}
+        onSubmit={() => ask(query)}
         disabled={status === 'thinking' || status === 'streaming'}
         strings={strings}
+        autoFocusKey={followMode ? 'follow' : 'base'}
       />
+
+      {followMode && thread.length ? (
+        <div className="icm-thread">
+          <span>{strings.followingUp}</span>
+          <span className="icm-thread-q" dir="auto">{thread[thread.length - 1]}</span>
+          <button
+            type="button"
+            className="icm-thread-end"
+            onClick={endThread}
+            title={strings.endThread}
+            aria-label={strings.endThread}
+          >
+            &times;
+          </button>
+        </div>
+      ) : null}
 
       {status === 'idle' && !answer && !docs.length ? (
         <div className="icm-examples">
@@ -93,7 +136,7 @@ export default function IcmAssistant({
               key={ex}
               type="button"
               className="icm-example"
-              onClick={() => { setQuery(ex); search(ex); }}
+              onClick={() => { setQuery(ex); ask(ex, { fresh: true }); }}
             >
               {ex}
             </button>
@@ -113,6 +156,8 @@ export default function IcmAssistant({
           onCite={handleCite}
           onCopy={handleCopy}
           copied={copied}
+          onFeedback={sendFeedback}
+          onFollowUp={startFollowUp}
         />
       </div>
 

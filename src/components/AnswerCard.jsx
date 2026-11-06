@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { segmentAnswer } from '../lib/citations.js';
 
 /**
@@ -16,8 +17,13 @@ export default function AnswerCard({
   onCite,
   onCopy,
   copied,
+  onFeedback,
+  onFollowUp,
 }) {
   const thinking = status === 'thinking';
+  // One rating per answer; a new answer (thinking) re-arms the buttons.
+  const [rated, setRated] = useState(false);
+  useEffect(() => { if (thinking) setRated(false); }, [thinking]);
   if (!thinking && !answer && !error) return null;
 
   const segments = segmentAnswer(answer, keyToCite);
@@ -57,12 +63,42 @@ export default function AnswerCard({
 
       {showMtNote && answer ? <p className="icm-mt-note">{mtNote}</p> : null}
 
-      {answer && !thinking ? (
+      {answer && status === 'done' ? (
         <div className="icm-answer-foot">
-          <button type="button" className="icm-ghost-btn" onClick={onCopy}>
-            {copied ? strings.copied : strings.copy}
-          </button>
           <p className="icm-hint">{strings.hint}</p>
+          <div className="icm-foot-actions">
+            {onFeedback ? (
+              <span className="icm-fb">
+                {rated ? (
+                  <span className="icm-fb-thanks" role="status">{strings.thanks}</span>
+                ) : (
+                  <>
+                    <span className="icm-fb-q">{strings.rateQ}</span>
+                    {[['up', '\u{1F44D}', strings.helpful], ['down', '\u{1F44E}', strings.notHelpful]].map(([r, icon, label]) => (
+                      <button
+                        key={r}
+                        type="button"
+                        className="icm-ghost-btn icm-fb-btn"
+                        title={label}
+                        aria-label={label}
+                        onClick={() => { setRated(true); onFeedback(r); }}
+                      >
+                        {icon}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </span>
+            ) : null}
+            {onFollowUp ? (
+              <button type="button" className="icm-ghost-btn" onClick={onFollowUp}>
+                {strings.followUp}
+              </button>
+            ) : null}
+            <button type="button" className="icm-ghost-btn" onClick={onCopy}>
+              {copied ? strings.copied : strings.copy}
+            </button>
+          </div>
         </div>
       ) : null}
     </section>

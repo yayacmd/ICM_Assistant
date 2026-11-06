@@ -20,7 +20,23 @@ export default function SourcesLedger({ docs, strings, activeKey, onSelect }) {
 
   // Reset drill-down whenever a new result set arrives.
   useEffect(() => { setMeeting(meetings[0] || null); }, [meetings.join('|')]);
-  useEffect(() => { setSection(sectionKeys[0] || null); }, [sectionKeys.join('|')]);
+  useEffect(() => {
+    // Prefer the active record's section when it lives in this meeting.
+    const doc = activeKey && docs.find((d) => d.key === activeKey);
+    const s = doc && (doc.meeting_section ?? 'Uncategorized').toString();
+    setSection(s && sectionKeys.includes(s) ? s : (sectionKeys[0] || null));
+  }, [sectionKeys.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Follow the active record: a citation can point into another tab or section
+  // (e.g. the Recent literature tab), so reveal where it lives.
+  useEffect(() => {
+    const doc = activeKey && docs.find((d) => d.key === activeKey);
+    if (!doc) return;
+    const m = (doc.meeting ?? 'Uncategorized').toString();
+    const s = (doc.meeting_section ?? 'Uncategorized').toString();
+    if (m !== meeting) setMeeting(m);
+    setSection(s);
+  }, [activeKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!docs.length) {
     return (

@@ -7,10 +7,19 @@
  * dashes to ASCII inside keys only -- never touch dashes in prose.
  */
 
-// 4-digit year, then one or more dash-separated alphanumeric segments.
-export const CITE_RE = /\[\s*([0-9]{4}(?:[-\u2010-\u2015\u2212][A-Za-z0-9]+)+)\s*\]/g;
+// ICM record keys: 4-digit year, then dash-separated alphanumeric segments.
+// Literature keys (recent-literature summary): PMID:<digits>.
+export const CITE_RE = /\[\s*([0-9]{4}(?:[-\u2010-\u2015\u2212][A-Za-z0-9]+)+|PMID\s*:\s*\d{4,9})\s*\]/gi;
 
-export const normalizeKey = (key) => String(key || '').replace(/[\u2010-\u2015\u2212]/g, '-');
+export const normalizeKey = (key) => {
+  const k = String(key || '');
+  return /^\s*pmid/i.test(k)
+    ? 'PMID:' + k.replace(/\D/g, '')
+    : k.replace(/[\u2010-\u2015\u2212]/g, '-');
+};
+
+/** Literature (PubMed) entries live in their own ledger tab and aren't ICM records. */
+export const isLiteratureKey = (key) => /^PMID:/i.test(String(key || ''));
 
 /**
  * Split answer text into renderable segments so React can render citations as
@@ -26,7 +35,7 @@ export function segmentAnswer(text, keyToCite) {
 
   const out = [];
   let last = 0;
-  const re = new RegExp(CITE_RE.source, 'g');
+  const re = new RegExp(CITE_RE.source, CITE_RE.flags);
   let m;
   while ((m = re.exec(src)) !== null) {
     const key = normalizeKey(m[1]);

@@ -100,6 +100,27 @@
   margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--icm-line);
 }
 .icm-hint { margin: 0; font-size: 12px; color: var(--icm-muted); flex: 1; min-width: 200px; }
+.icm-foot-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.icm-fb { display: inline-flex; align-items: center; gap: 4px; }
+.icm-fb-q, .icm-fb-thanks { font-size: 12px; color: var(--icm-muted); }
+.icm-fb-q { margin-inline-end: 2px; }
+.icm-fb-btn { min-width: 34px; justify-content: center; padding-inline: 8px; }
+.icm-thread {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px;
+  font-size: 13px; color: var(--icm-muted);
+}
+.icm-thread-q {
+  color: var(--icm-ink); font-weight: 500; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; max-width: min(60ch, 70vw);
+}
+.icm-thread-end {
+  border: 1px solid var(--icm-line); background: transparent; color: var(--icm-muted);
+  border-radius: 999px; width: 24px; height: 24px; cursor: pointer; line-height: 1; font: inherit;
+}
+.icm-thread-end:hover { border-color: var(--icm-accent); color: var(--icm-accent); }
+@media (max-width: 576px) {
+  .icm-answer-foot { flex-direction: column; align-items: flex-start; }
+}
 .icm-err { color: var(--icm-danger); margin: 0; font-size: 14px; }
 
 /* thinking pulse */

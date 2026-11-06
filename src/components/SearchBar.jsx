@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 
-export default function SearchBar({ value, onChange, onSubmit, disabled, strings }) {
+export default function SearchBar({ value, onChange, onSubmit, disabled, strings, autoFocusKey }) {
   const ref = useRef(null);
-  useEffect(() => { ref.current?.focus(); }, []);
+  // Focus on mount, and again when the caller changes autoFocusKey (e.g. a follow-up starts).
+  useEffect(() => { ref.current?.focus(); }, [autoFocusKey]);
 
   return (
     <div className="icm-searchbar">
