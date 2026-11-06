@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { segmentAnswer } from '../lib/citations.js';
+import AnswerText from './AnswerText.jsx';
 
 /**
  * Renders the streamed answer with inline [key] markers replaced by numbered
@@ -18,15 +18,12 @@ export default function AnswerCard({
   onCopy,
   copied,
   onFeedback,
-  onFollowUp,
 }) {
   const thinking = status === 'thinking';
   // One rating per answer; a new answer (thinking) re-arms the buttons.
   const [rated, setRated] = useState(false);
   useEffect(() => { if (thinking) setRated(false); }, [thinking]);
   if (!thinking && !answer && !error) return null;
-
-  const segments = segmentAnswer(answer, keyToCite);
 
   return (
     <section className="icm-card icm-answer" aria-live="polite">
@@ -42,23 +39,7 @@ export default function AnswerCard({
       {error ? <p className="icm-err">{error}</p> : null}
 
       {answer ? (
-        <div className="icm-answer-text">
-          {segments.map((seg, i) =>
-            seg.type === 'text' ? (
-              <span key={i}>{seg.value}</span>
-            ) : (
-              <button
-                key={i}
-                type="button"
-                className="icm-cite"
-                onClick={() => onCite(seg.key)}
-                aria-label={`${strings.sources} ${seg.n}`}
-              >
-                {seg.n}
-              </button>
-            )
-          )}
-        </div>
+        <AnswerText text={answer} keyToCite={keyToCite} onCite={onCite} label={strings.sources} />
       ) : null}
 
       {showMtNote && answer ? <p className="icm-mt-note">{mtNote}</p> : null}
@@ -89,11 +70,6 @@ export default function AnswerCard({
                   </>
                 )}
               </span>
-            ) : null}
-            {onFollowUp ? (
-              <button type="button" className="icm-ghost-btn" onClick={onFollowUp}>
-                {strings.followUp}
-              </button>
             ) : null}
             <button type="button" className="icm-ghost-btn" onClick={onCopy}>
               {copied ? strings.copied : strings.copy}

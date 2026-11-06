@@ -5,6 +5,7 @@ import { normalizeKey } from '../lib/citations.js';
 import { useIcmSearch } from '../hooks/useIcmSearch.js';
 import SearchBar from './SearchBar.jsx';
 import AnswerCard from './AnswerCard.jsx';
+import AnswerText from './AnswerText.jsx';
 import SourcesLedger from './SourcesLedger.jsx';
 import '../styles.css';
 
@@ -23,6 +24,10 @@ const PdfViewer = lazy(() => import('./PdfViewer.jsx'));
  *
  * Theming is via CSS custom properties -- override tokens rather than forking
  * styles, so a restyle never touches logic.
+ *
+ * Conversational: every question after the first continues the conversation
+ * (the backend resolves "what about revision cases?" from compact history), and
+ * references are numbered once per conversation. "New conversation" resets it.
  */
 export default function IcmAssistant({
   apiBase = DEFAULTS.apiBase,
@@ -38,46 +43,51 @@ export default function IcmAssistant({
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(null);
   const [copied, setCopied] = useState(false);
-  const answerRef = useRef(null);
+  const curQRef = useRef(null);
 
-  const { status, answer, docs, keyToCite, error, search, sendFeedback } =
-    useIcmSearch({ apiBase, lang, strings });
+  const {
+    status, answer, docs, ledger, keyToCite, error, search, sendFeedback,
+    thread, turns, currentQ, newConversation,
+  } = useIcmSearch({ apiBase, lang, strings, conversation: true });
 
-  // Follow-up thread: questions asked so far. In follow-up mode the next query
-  // sends them as `previous` so "what about revision cases?" resolves against
-  // the earlier question. Normal questions send nothing extra (no extra LLM call).
-  const [thread, setThread] = useState([]);
-  const [followMode, setFollowMode] = useState(false);
+  const inConversation = turns.length > 0 || status !== 'idle';
 
-  const ask = useCallback(async (text, { fresh = false } = {}) => {
+  const ask = useCallback((text) => {
     const q = String(text || '').trim();
     if (!q) return;
-    const inThread = followMode && !fresh && thread.length > 0;
-    setFollowMode(false);
-    const ok = await search(q, inThread ? { previous: thread.join(' \u2192 ') } : {});
-    if (ok) setThread((t) => (inThread ? t : []).concat(q).slice(-4));
-  }, [followMode, thread, search]);
-
-  const startFollowUp = useCallback(() => {
-    setFollowMode(true);
     setQuery('');
-  }, []);
+    search(q);
+  }, [search]);
 
-  const endThread = useCallback(() => {
-    setFollowMode(false);
-    setThread([]);
-  }, []);
+  const startNewConversation = useCallback(() => {
+    newConversation();
+    setSelected(null);
+    setQuery('');
+  }, [newConversation]);
 
-  // Auto-open the first source once results land, so the viewer is never blank.
+  // Each new answer's records arrive with `docs`: open the first one so the
+  // viewer is never blank. (Ledger re-numbering alone doesn't move the viewer.)
   useEffect(() => {
-    if (docs.length) setSelected(docs[0]);
-    else setSelected(null);
-  }, [docs]);
+    const first = ledger.find((d) => docs.includes(d) || docs.some((x) => x.key === d.key));
+    setSelected(first || null);
+  }, [docs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep the open record's object current (its number can change mid-stream).
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = ledger.find((d) => d.key === selected.key);
+    if (fresh && fresh !== selected) setSelected(fresh);
+  }, [ledger]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Bring the new question into view when it is asked.
+  useEffect(() => {
+    if (status === 'thinking') curQRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [status, currentQ]);
 
   const handleCite = useCallback((key) => {
-    const target = docs.find((d) => normalizeKey(d.key || '') === key);
+    const target = ledger.find((d) => normalizeKey(d.key || '') === key);
     if (target) setSelected(target);
-  }, [docs]);
+  }, [ledger]);
 
   const handleCopy = useCallback(() => {
     if (!answer) return;
@@ -91,6 +101,18 @@ export default function IcmAssistant({
     ? Object.fromEntries(Object.entries(theme).map(([k, v]) => [`--icm-${k}`, v]))
     : undefined;
 
+  const searchBar = (
+    <SearchBar
+      value={query}
+      onChange={setQuery}
+      onSubmit={() => ask(query)}
+      disabled={status === 'thinking' || status === 'streaming'}
+      strings={strings}
+      placeholder={turns.length ? strings.followPh : strings.ph}
+      autoFocusKey={turns.length}
+    />
+  );
+
   return (
     <div
       className={`icm-root ${className}`}
@@ -103,32 +125,9 @@ export default function IcmAssistant({
         <p className="icm-tagline">{strings.tag}</p>
       </header>
 
-      <SearchBar
-        value={query}
-        onChange={setQuery}
-        onSubmit={() => ask(query)}
-        disabled={status === 'thinking' || status === 'streaming'}
-        strings={strings}
-        autoFocusKey={followMode ? 'follow' : 'base'}
-      />
+      {!inConversation ? searchBar : null}
 
-      {followMode && thread.length ? (
-        <div className="icm-thread">
-          <span>{strings.followingUp}</span>
-          <span className="icm-thread-q" dir="auto">{thread[thread.length - 1]}</span>
-          <button
-            type="button"
-            className="icm-thread-end"
-            onClick={endThread}
-            title={strings.endThread}
-            aria-label={strings.endThread}
-          >
-            &times;
-          </button>
-        </div>
-      ) : null}
-
-      {status === 'idle' && !answer && !docs.length ? (
+      {status === 'idle' && !turns.length ? (
         <div className="icm-examples">
           <span className="icm-examples-label">{strings.tryLabel}</span>
           {examples.map((ex) => (
@@ -136,7 +135,7 @@ export default function IcmAssistant({
               key={ex}
               type="button"
               className="icm-example"
-              onClick={() => { setQuery(ex); ask(ex, { fresh: true }); }}
+              onClick={() => ask(ex)}
             >
               {ex}
             </button>
@@ -144,26 +143,51 @@ export default function IcmAssistant({
         </div>
       ) : null}
 
-      <div ref={answerRef}>
-        <AnswerCard
-          answer={answer}
-          keyToCite={keyToCite}
-          status={status}
-          error={error}
-          strings={strings}
-          mtNote={mtNoteFor(lang)}
-          showMtNote={lang !== 'en'}
-          onCite={handleCite}
-          onCopy={handleCopy}
-          copied={copied}
-          onFeedback={sendFeedback}
-          onFollowUp={startFollowUp}
-        />
-      </div>
+      {thread.map((t, i) => (
+        <div className="icm-turn" key={i}>
+          <div className="icm-qbubble" dir="auto">{t.q}</div>
+          <AnswerText
+            text={t.answer}
+            keyToCite={keyToCite}
+            onCite={handleCite}
+            label={strings.sources}
+            className="icm-card icm-turn-answer icm-answer-text"
+          />
+        </div>
+      ))}
 
-      {docs.length || status === 'done' ? (
+      {currentQ ? <div className="icm-qbubble" dir="auto" ref={curQRef}>{currentQ}</div> : null}
+
+      <AnswerCard
+        answer={answer}
+        keyToCite={keyToCite}
+        status={status}
+        error={error}
+        strings={strings}
+        mtNote={mtNoteFor(lang)}
+        showMtNote={lang !== 'en'}
+        onCite={handleCite}
+        onCopy={handleCopy}
+        copied={copied}
+        onFeedback={sendFeedback}
+      />
+
+      {inConversation ? (
+        <>
+          <div className="icm-conv-ask">{searchBar}</div>
+          {turns.length ? (
+            <div className="icm-conv-bar">
+              <button type="button" className="icm-link-btn" onClick={startNewConversation}>
+                {strings.newConv}
+              </button>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+
+      {ledger.length || status === 'done' ? (
         <SourcesLedger
-          docs={docs}
+          docs={ledger}
           strings={strings}
           activeKey={selected?.key}
           onSelect={setSelected}

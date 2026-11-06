@@ -66,3 +66,27 @@ export function assignCiteNumbers(documents) {
   }
   return { docs, keyToCite };
 }
+
+/**
+ * Conversation-wide citation numbers: walk the answers in order and number each
+ * known key on its first citation. Earlier answers never change, so numbers are
+ * stable as the conversation grows; a record cited in answers 1 and 3 keeps one
+ * number. Keys not in `known` (no source record) stay unnumbered.
+ *
+ * @param {string[]} texts  answers, oldest first (the in-flight one last)
+ * @param {Set<string>|Map<string,*>} known  keys that have a source record
+ * @returns {Map<string, number>}
+ */
+export function numberCitations(texts, known) {
+  const map = new Map();
+  const re = new RegExp(CITE_RE.source, CITE_RE.flags);
+  for (const text of texts) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(String(text || ''))) !== null) {
+      const key = normalizeKey(m[1]);
+      if (known.has(key) && !map.has(key)) map.set(key, map.size + 1);
+    }
+  }
+  return map;
+}

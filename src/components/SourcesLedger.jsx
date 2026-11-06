@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { groupBy, safeName } from '../lib/format.js';
 
 /**
@@ -10,6 +10,13 @@ export default function SourcesLedger({ docs, strings, activeKey, onSelect }) {
   const byMeeting = useMemo(() => groupBy(docs, 'meeting'), [docs]);
   const meetings = useMemo(() => Object.keys(byMeeting), [byMeeting]);
   const [meeting, setMeeting] = useState(meetings[0] || null);
+  const tabsRef = useRef(null);
+  // The tab row scrolls horizontally; keep the active tab visible when a
+  // citation switches tabs.
+  useEffect(() => {
+    tabsRef.current?.querySelector('.is-active')
+      ?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [meeting]);
 
   const sections = useMemo(
     () => groupBy(byMeeting[meeting] || [], 'meeting_section'),
@@ -54,7 +61,7 @@ export default function SourcesLedger({ docs, strings, activeKey, onSelect }) {
       <h2 className="icm-sources-title">{strings.sources}</h2>
 
       {meetings.length > 1 ? (
-        <div className="icm-tabs" role="tablist">
+        <div className="icm-tabs" role="tablist" ref={tabsRef}>
           {meetings.map((m) => (
             <button
               key={m}
@@ -94,7 +101,9 @@ export default function SourcesLedger({ docs, strings, activeKey, onSelect }) {
               className={`icm-row${isActive ? ' is-active' : ''}`}
               onClick={() => onSelect(doc)}
             >
-              <span className="icm-cite-no">{doc._cite}</span>
+              <span className={`icm-cite-no${doc._cite == null ? ' is-none' : ''}`}>
+                {doc._cite == null ? '\u00b7' : doc._cite}
+              </span>
               <span className="icm-row-main">
                 <span className="icm-row-name">{safeName(doc)}</span>
                 {loe || vote ? (
